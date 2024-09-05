@@ -18,8 +18,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -28,11 +30,29 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Controller {
 
-    @PostMapping("/calculate")
-    public ResponseEntity<String> calculate(@RequestBody List<Integer> numbers) {
-        int result = numbers.stream().mapToInt(Integer::intValue).sum();
-        return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(String.valueOf(result));
+    @PostMapping(value = "/calculate", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE, produces = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<String> calculateSum(HttpServletRequest request) {
+        try (InputStream inputStream = request.getInputStream()) {
+            // Read the octet-stream as a string
+            String input = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+                    .lines().collect(Collectors.joining("\n"));
+
+            // Assume the input is a comma-separated list of integers, like "1,2,3,4"
+            List<Integer> numbers = Arrays.stream(input.split(","))
+                    .map(Integer::parseInt)
+                    .collect(Collectors.toList());
+
+            // Perform the calculation
+            int result = numbers.stream().mapToInt(Integer::intValue).sum();
+
+            // Return the result as plain text
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(String.valueOf(result));
+        } catch (IOException | NumberFormatException e) {
+            // Handle any errors such as invalid input or I/O issues
+            return ResponseEntity.badRequest().body("Invalid input or data format.");
+        }
     }
+
 }
